@@ -1,7 +1,9 @@
 var Platform = cc.Sprite.extend({
   
-    ctor: function(spriteFrameName) {
-		this._super(spriteFrameName);
+    
+    
+    ctor: function(spriteName) {
+		this._super(spriteName);
 	}
     
     

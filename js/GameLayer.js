@@ -29,16 +29,41 @@ var GameLayer = cc.Layer.extend({
     initPlatforms: function(){
         
         for(var i=0; i<1; i++){
-            this.addNextPlatform();        
+            this.addNextPlatform();
         }
 
     },
     
-    addTopPlatform: function(){
+    topPosPlatform: function(){
+        var top = 0;
+    
+        for(var i=0; i < this.platforms.length; i++){
+            if (this.platforms[i].getPosition().y > top){
+                top = this.platforms[i].getPosition().y;
+            }
+        }
+                                
+        return top;
+    },
+    
+    addNextPlatform: function(){
         
-        var platform = cc.Sprite.create(g_assets.IMG_PLATFORM);
-		platform.setPosition(100, 100);
-		this.addChild(platform, g_settings.ZINDEX_PLATFORM);
+        var yDistance = 100;
+        
+        var yPos = yDistance + this.topPosPlatform();
+        
+		var xPos = 100;
+        
+        var platform = new Platform(g_assets.IMG_PLATFORM);
+        platform.setPosition(xPos, yPos);
+        this.addChild(platform, g_settings.ZINDEX_PLATFORM);
+        
+        this.platforms.push(platform);
+        
+        
+        var t = this.topPosPlatform();
+        
+        console.log(t);
         
     },
     
