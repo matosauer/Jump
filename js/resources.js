@@ -13,8 +13,8 @@ var g_settings = {
 
 g_settings.platform_1 =
 {
-    w: 80,
-    h: 20
+    width: 80,
+    height: 20
 }
 
 

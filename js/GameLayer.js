@@ -9,7 +9,6 @@ var GameLayer = cc.Layer.extend({
     
 	init: function() {
         this.addBackground();
-    
         this.initPlatforms();
         
         //this.scheduleUpdate();
@@ -28,33 +27,36 @@ var GameLayer = cc.Layer.extend({
     
     initPlatforms: function(){
         
-        this.clearPlatofrms();
+        var size = cc.director.getWinSize();
+        
+        this.clearPlatforms();
         
         var topPos = this.basePlatformPos();
         this.addNextPlatform(topPos);
         
-        for(var i=0; i<5; i++){
-            topPos = this.nextPlatformPos(topPos);
-            this.addNextPlatform(topPos);
-        }
+        topPos = this.nextPlatformPos(topPos, g_settings.platform_1);
         
+        var i = 0;
+        while(topPos.y < size.height && i < 20){
+            this.addNextPlatform(topPos);
+            topPos = this.nextPlatformPos(topPos, g_settings.platform_1);
+            i++;
+        }
     },
     
     basePlatformPos: function(){
-        
         var size = cc.director.getWinSize();
         
         var pos = 
             {
                 x: size.width / 2,
-                y: 100
+                y: 50
             };
         
         return pos;
     },
     
     topPlatformPos: function(){
-        
         var topPos = 
             {
                 x: 0,
@@ -70,7 +72,7 @@ var GameLayer = cc.Layer.extend({
         return topPos;
     },
     
-    nextPlatformPos: function(prevPos){
+    nextPlatformPos: function(prevPos, settings){
         
         var size = cc.director.getWinSize();
         
@@ -79,12 +81,12 @@ var GameLayer = cc.Layer.extend({
         
         var maxVerDistance = 10;  //depends on level?
         var minVerOffset = 50; //depends on level?
-        var verMargin = g_settings.platform_1.h / 2;
+        var verMargin = settings.height / 2;
         var yPos = prevPos.y + minVerOffset + (maxVerDistance / 2 - Math.floor(Math.random() * maxVerDistance));
         
         var maxHorDistance = 100;  //depends on level?
         var minHorOffset = 0;
-        var horMargin = g_settings.platform_1.w / 2;
+        var horMargin = settings.width / 2;
         var xPos = prevPos.x + minHorOffset + (maxHorDistance / 2 - Math.floor(Math.random() * maxHorDistance));
         
 		if (xPos < horMargin) {
@@ -113,18 +115,17 @@ var GameLayer = cc.Layer.extend({
         return platform;
     },
     
-    clearPlatofrms: function(){
-        
+    clearPlatforms: function(){
         while(this.platforms.length > 0) {
             var platform = this.platforms.pop();
             platform.removeFromParent();
         }
-        
     },
     
-    removePlatform: function(platform){
-        //A.splice(0,A.length)
-    
+    removePlatform: function(idx){
+        var platform = this.platforms[idx];
+        platform.removeFromParent();
+        this.platforms.splice(idx, 1);
     }
     
     
