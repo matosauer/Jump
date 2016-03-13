@@ -1,5 +1,8 @@
 var GameLayer = cc.Layer.extend({
     
+    sceneState: g_settings.SCENE_STATE_STOPPED,
+    platformsSpeed: g_settings.SPEED_1,
+    
     platforms: [],
     
 	ctor: function() {
@@ -14,6 +17,48 @@ var GameLayer = cc.Layer.extend({
         //this.scheduleUpdate();
     },
     
+    onEnter:function() {
+		this._super();
+        
+		cc.eventManager.addListener({
+			event: cc.EventListener.TOUCH_ONE_BY_ONE,
+			swallowTouches: true,
+			onTouchBegan: this.onTouchBegan
+			//onTouchMoved: this.onTouchMoved,
+			//onTouchEnded: this.onTouchEnded
+		}, this);
+		
+		//this.schedule(this.onTick);
+        this.schedule(this.update);
+        //this.scheduleUpdate();
+    },
+    
+    onTouchBegan:function(touch, event) {
+		var tp = touch.getLocation();
+		var tar = event.getCurrentTarget();
+        
+        if (tar.sceneState == g_settings.SCENE_STATE_STOPPED){
+            tar.sceneState = g_settings.SCENE_STATE_RUNNING;
+            tar.setSpeed(g_settings.SPEED_1);
+            
+        } else if (tar.sceneState == g_settings.SCENE_STATE_RUNNING){
+            tar.sceneState = g_settings.SCENE_STATE_RUNNING_FAST;
+            tar.setSpeed(g_settings.SPEED_2);
+            
+        } else if (tar.sceneState == g_settings.SCENE_STATE_RUNNING_FAST){
+            tar.sceneState = g_settings.SCENE_STATE_RUNNING_FLASH;
+            tar.setSpeed(g_settings.SPEED_3);
+                
+        } else{
+            tar.sceneState = g_settings.SCENE_STATE_STOPPED;
+        }
+        
+		//console.log('onTouchBegan:' + tp.x.toFixed(2) + ','  + tp.y.toFixed(2));
+        //console.log(this.sceneState);
+		
+		return false;
+	},
+    
     addBackground: function(){
     	var size = cc.director.getWinSize();
 		var bgSprite = cc.Sprite.create(g_assets.IMG_BG);
@@ -23,6 +68,55 @@ var GameLayer = cc.Layer.extend({
     
     update: function(dt){
         //console.log(dt);
+        
+        if (this.sceneState == g_settings.SCENE_STATE_RUNNING ||
+            this.sceneState == g_settings.SCENE_STATE_RUNNING_FAST ||
+            this.sceneState == g_settings.SCENE_STATE_RUNNING_FLASH
+           )
+        {
+            this.updatePlatforms(dt);        
+        }
+    },
+    
+    updatePlatforms: function(dt){
+        
+        //Move existed
+        for(var i = this.platforms.length - 1; i >= 0; i--){
+            var platform = this.platforms[i];
+            platform.y -= platform.pixelsPerSecond * dt;
+            
+            if (platform.y < 0){
+                this.removePlatformAt(i);
+                //console.log("remove, total " + this.platforms.length);
+            }
+        }
+        
+        //Add new platform when neccessary
+        var nextMinOffset = 50; //Depend on level
+        
+        var size = cc.director.getWinSize();
+        var topRect = this.topPlatformRect();
+        
+        if (size.height - topRect.origin.y + topRect.height / 2 > nextMinOffset){
+            
+            //Depend on level
+            var nextPos = this.nextPlatformPos(topRect.origin, g_settings.platform_1);
+            this.addNextPlatform(nextPos, g_settings.PLATFORM_TYPE_1, this.platformsSpeed, g_settings.platform_1);
+        
+            //console.log("add, total " + this.platforms.length);
+            //console.log(this.platformsSpeed);
+        }
+    },
+    
+    setSpeed: function(speed){
+        
+        this.platformsSpeed = speed;
+        
+        for(var i = 0; i < this.platforms.length; i++){
+            this.platforms[i].setSpeed(speed);
+        }
+        
+        //console.log("set speed " + speed);
     },
     
     initPlatforms: function(){
@@ -32,13 +126,13 @@ var GameLayer = cc.Layer.extend({
         this.clearPlatforms();
         
         var topPos = this.basePlatformPos();
-        this.addNextPlatform(topPos);
+        this.addNextPlatform(topPos, g_settings.PLATFORM_TYPE_1, g_settings.SPEED_1, g_settings.platform_1);
         
         topPos = this.nextPlatformPos(topPos, g_settings.platform_1);
         
         var i = 0;
-        while(topPos.y < size.height && i < 20){
-            this.addNextPlatform(topPos);
+        while(topPos.y + g_settings.platform_1.height / 2 < size.height && i < 20){
+            this.addNextPlatform(topPos, g_settings.PLATFORM_TYPE_1, g_settings.SPEED_1, g_settings.platform_1);
             topPos = this.nextPlatformPos(topPos, g_settings.platform_1);
             i++;
         }
@@ -56,6 +150,7 @@ var GameLayer = cc.Layer.extend({
         return pos;
     },
     
+    /*
     topPlatformPos: function(){
         var topPos = 
             {
@@ -71,8 +166,32 @@ var GameLayer = cc.Layer.extend({
                                 
         return topPos;
     },
+    */
     
-    nextPlatformPos: function(prevPos, settings){
+    topPlatformRect: function(){
+        var topRect = 
+            {
+                origin:
+                {
+                    x: 0,
+                    y: 0
+                },
+                width: 0,
+                height: 0
+            };
+    
+        for(var i = 0; i < this.platforms.length; i++){
+            if (this.platforms[i].getPosition().y > topRect.origin.y){
+                topRect.origin = this.platforms[i].getPosition();
+                topRect.width = this.platforms[i].rectWidth;
+                topRect.height = this.platforms[i].rectHeight;
+            }
+        }
+                                
+        return topRect;
+    },
+    
+    nextPlatformPos: function(prevPos, rect){
         
         var size = cc.director.getWinSize();
         
@@ -81,12 +200,12 @@ var GameLayer = cc.Layer.extend({
         
         var maxVerDistance = 10;  //depends on level?
         var minVerOffset = 50; //depends on level?
-        var verMargin = settings.height / 2;
+        var verMargin = rect.height / 2;
         var yPos = prevPos.y + minVerOffset + (maxVerDistance / 2 - Math.floor(Math.random() * maxVerDistance));
         
         var maxHorDistance = 100;  //depends on level?
         var minHorOffset = 0;
-        var horMargin = settings.width / 2;
+        var horMargin = rect.width / 2;
         var xPos = prevPos.x + minHorOffset + (maxHorDistance / 2 - Math.floor(Math.random() * maxHorDistance));
         
 		if (xPos < horMargin) {
@@ -104,10 +223,16 @@ var GameLayer = cc.Layer.extend({
         return pos;
     },
     
-    addNextPlatform: function(pos){
+    addNextPlatform: function(pos, platformType, speed, rect){
         
         var platform = new Platform(g_assets.IMG_PLATFORM);
+        
+        platform.platformType = platformType;
         platform.setPosition(pos.x, pos.y);
+        platform.setSpeed(speed);
+        platform.rectWidth = rect.width;
+        platform.rectHeight = rect.height;
+        
         this.addChild(platform, g_settings.ZINDEX_PLATFORM);
         
         this.platforms.push(platform);
@@ -122,7 +247,7 @@ var GameLayer = cc.Layer.extend({
         }
     },
     
-    removePlatform: function(idx){
+    removePlatformAt: function(idx){
         var platform = this.platforms[idx];
         platform.removeFromParent();
         this.platforms.splice(idx, 1);
